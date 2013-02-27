@@ -215,14 +215,49 @@ request_url(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey}, 
       httpc:request(HttpMethod, {FullUrl, [{"Accept-Charset", "utf-8"}]},
                     [{autoredirect, false}], [{body_format, binary}]), Fun).
 
+%%
+%% There are two possibilities depending on the API call:
+%%   * Old API: there's no dedicated metadata block in the body, so
+%%              the body is just a list of entries
+%%   * v2 API : dedicated metadata, dedicated results list
+%%
+%% If the 2nd argument to this is undefined, this is the old API.
+%%
+%% To retrieve the next link (for paging) from the headers we have to
+%% be careful, because both the prev and next links are given the same
+%% header name, and thus Headers is not useful as an Erlang proplist.
+extract_meta(Headers, undefined, Results) ->
+    [ { next, find_next_link(Headers) },
+      { results, Results } ];
+extract_meta(_Headers, MetaData, Results) ->
+    [ { next, proplists:get_value(<<"next">>, MetaData) },
+      { results, proplists:get_value(<<"results">>, Results) } ].
+
 -spec check_http_results(tuple(), fun()) -> any().
 check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, Fun) ->
-    Fun(Body);
+    ParsedJson = Fun(Body),
+    {ok, extract_meta(Headers, proplists:get_value(<<"meta">>, ParsedJson), ParsedJson) };
 check_http_results({ok, {{_HttpVersion, _Status, StatusMsg}, _Headers, Body}}, _Fun) ->
     {error, extract_error_message(StatusMsg, Body) };
 check_http_results(Other, _Fun) ->
     {unknown, Other}.
 
+%%
+%% Scan headers list looking for something like:
+%% {"link",
+%%  "<https://api.meetup.com/find/groups?page=3&offset=2&category=34>; rel=\"next\""},
+find_next_link([]) ->
+    undefined;
+find_next_link([{"link", Header}|T]) ->
+    case re:run(Header, "<(http.*)>;\\s*rel=.next") of
+        {match, Matches} ->
+            {Start, Len} = lists:nth(2, Matches),
+            string:sub_string(Header, Start + 1, Start + Len);
+        _ ->
+            find_next_link(T)
+    end;
+find_next_link([_H|T]) ->
+    find_next_link(T).
 
 
 %% Meetup does not appear to reliably provide error details in the
