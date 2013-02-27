@@ -83,19 +83,19 @@ more information. I think it depends on the API generation.
 
 `/find/groups` will return `Link` values as HTTP headers:
 
-    Link: <https://api.meetup.com/find/groups?zip=60601&page=50&key=4d21294a5f4f402326a79d125a4967&offset=3>; rel="next"
-    Link: <https://api.meetup.com/find/groups?zip=60601&page=50&key=4d21294a5f4f402326a79d125a4967&offset=1>; rel="prev"
+    Link: <https://api.meetup.com/find/groups?zip=60601&page=50&offset=3>; rel="next"
+    Link: <https://api.meetup.com/find/groups?zip=60601&page=50&offset=1>; rel="prev"
 
 `/2/events` will return `next` values in metadata (but no `prev` URL):
 
     "meta": {
          "link": "https://api.meetup.com/2/events",
          "method": "Events",
-         "next": "https://api.meetup.com/2/events?group_id=1709331&key=4d21294a5f4f402326a79d125a4967&status=upcoming&order=time&limited_events=False&desc=false&offset=1&format=json&page=3&fields=",
+         "next": "https://api.meetup.com/2/events?group_id=1709331&status=upcoming&order=time&limited_events=False&desc=false&offset=1&format=json&page=3&fields=",
          "title": "Meetup Events v2",
          "total_count": 13,
          "updated": 1360773015000,
-         "url": "https://api.meetup.com/2/events?group_id=1709331&key=4d21294a5f4f402326a79d125a4967&status=upcoming&order=time&limited_events=False&desc=false&offset=0&format=json&page=3&fields="
+         "url": "https://api.meetup.com/2/events?group_id=1709331&status=upcoming&order=time&limited_events=False&desc=false&offset=0&format=json&page=3&fields="
     },
 
 This generation gap also impacts the interpretation of JSON in
