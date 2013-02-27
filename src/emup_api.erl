@@ -97,8 +97,6 @@ rsvps(EventId) ->
 events(member) ->
     gen_server:call(?SERVER, {events, {member_id, authorized}}).
 
-%% Haven't yet introduced paging to handle > 200 results, which seems
-%% to be the undocumented limit
 find_groups(Params) ->
     gen_server:call(?SERVER, {groups, {params, Params}}, 10000).
 
