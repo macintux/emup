@@ -262,23 +262,11 @@ check_http_results(Other, _Fun) ->
 
 
 
-%% Upon authorization error, and presumably others, Meetup.com
-%% provides a JSON structure with two fields, details and problem.
-%%
-%% Unclear which will be more useful, so provide both.
-%%
-%% Rather than assume that structure will remain constant, attempt to
-%% decode the JSON, but return the HTTP status header if it fails.
+%% Meetup does not appear to reliably provide error details in the
+%% body of a failed request, so just return the status message
 -spec extract_error_message(string(), string()) -> string().
-extract_error_message(HttpStatusMsg, Body) ->
-    try
-        Contents = jsx:decode(unicode:characters_to_binary(Body)),
-        io_lib:format("~s / ~s", [kvc:path(<<"details">>, Contents),
-                                  kvc:path(<<"problem">>, Contents)])
-    catch
-        _:_ ->
-            HttpStatusMsg
-    end.
+extract_error_message(HttpStatusMsg, _Body) ->
+    HttpStatusMsg.
 
 
 -spec parse_response(binary() | string()) -> any().
