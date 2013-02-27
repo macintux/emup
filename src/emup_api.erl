@@ -10,7 +10,7 @@
 %% Our API
 -export([single_auth/1, start_link/1, stop/0,
          members/1, member_info/1, event_info/1, group_info/1,
-         groups/1, groups/2, events/1, events/2, find_groups/1, rsvps/1
+         groups/1, groups/2, events/1, events/2, find_groups/1, find_groups/2, rsvps/1
         ]).
 
 %% gen_server
@@ -99,8 +99,12 @@ events(member) ->
 
 %% Haven't yet introduced paging to handle > 200 results, which seems
 %% to be the undocumented limit
-find_groups(Text) ->
+find_groups(Params) ->
+    gen_server:call(?SERVER, {groups, {params, Params}}, 10000).
+
+find_groups(search, Text) ->
     gen_server:call(?SERVER, {groups, {search_text, Text}}, 10000).
+
 
 %% behavior implementation
 init([Auth]) ->
@@ -127,6 +131,8 @@ handle_call({event_info, EventId}, _From, State) ->
     {reply, meetup_call(State, event_info, [], [EventId]), State};
 handle_call({groups, {search_text, Search}}, _From, State) ->
     {reply, meetup_call(State, find_groups, [{text, Search}, {radius, "global"}]), State};
+handle_call({groups, {params, Params}}, _From, State) ->
+    {reply, meetup_call(State, find_groups, Params), State};
 handle_call({members, GroupId}, _From, State) ->
     {reply, meetup_call(State, members, [{group_id, GroupId}]), State};
 handle_call({group_info, GroupId}, _From, State) ->
