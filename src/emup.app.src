@@ -1,0 +1,19 @@
+{application, emup,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, [emup_sup]},
+  {modules, [
+             emup,
+             emup_app,
+             emup_sup
+             ]},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  inets,
+                  ssl
+                 ]},
+  {mod, { emup_app, []}},
+  {env, []}
+ ]}.
