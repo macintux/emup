@@ -215,46 +215,9 @@ request_url(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey}, 
       httpc:request(HttpMethod, {FullUrl, [{"Accept-Charset", "utf-8"}]},
                     [{autoredirect, false}], [{body_format, binary}]), Fun).
 
-id_content_type(EncodingHeader, Default) ->
-    case re:run(EncodingHeader, "charset=([^;]*)", [caseless]) of
-        {match, Matches} ->
-            {Start, Len} = lists:nth(2, Matches),
-            match_content_type(
-              string:to_lower(
-                string:sub_string(EncodingHeader, Start + 1, Start + Len)),
-             Default);
-        _ ->
-            Default
-    end.
-
-match_content_type("iso-8859-1", _Default) ->
-    latin1;
-match_content_type("latin1", _Default) ->
-    latin1;
-match_content_type("utf-8", _Default) ->
-    utf8;
-match_content_type("utf8", _Default) ->
-    utf8;
-match_content_type(_, Default) ->
-    Default.
-
-
-%% This mess should no longer be necessary, because meetup allows us
-%% to force UTF-8 by specifying an accept-charset header, but given
-%% how painful it can be if meetup.com fails to force it into UTF-8,
-%% I'm leaving this in place as a safeguard, with a warning.
-convert_body_by_content_type(utf8, Body) ->
-    Body;
-convert_body_by_content_type(Other, Body) ->
-    io:format("DANGER: meetup.com gave us non-UTF-8 response~n", []),
-    unicode:characters_to_binary(unicode:characters_to_list(Body, Other)).
-
 -spec check_http_results(tuple(), fun()) -> any().
 check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, Fun) ->
-    Fun(convert_body_by_content_type(
-          id_content_type(proplists:get_value("content-type", Headers, "charset=utf-8"),
-                         utf8),
-          Body));
+    Fun(Body);
 check_http_results({ok, {{_HttpVersion, _Status, StatusMsg}, _Headers, Body}}, _Fun) ->
     {error, extract_error_message(StatusMsg, Body) };
 check_http_results(Other, _Fun) ->
