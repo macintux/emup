@@ -8,7 +8,7 @@
 -behavior(gen_server).
 
 %% Our API
--export([single_auth/1, start_link/1, stop/0,
+-export([single_auth/1, start_link/1, stop/0, next_page/1,
          members/1, member_info/1, event_info/1, group_info/1,
          groups/1, groups/2, events/1, events/2, find_groups/1, find_groups/2, rsvps/1
         ]).
@@ -86,6 +86,12 @@ group_info(GroupId) ->
 rsvps(EventId) ->
     gen_server:call(?SERVER, {rsvps, EventId}).
 
+
+%% We hand the next page URL back to the client, and the client gives
+%% it back to us if more results are desired
+next_page(Url) ->
+    gen_server:call(?SERVER, {next_page, Url}).
+
 %% Note on event topic searches: they will match on group metadata as
 %% well as event description/title/URL, so there will be false
 %% positives here. May wish to do further text searches to verify the
@@ -121,6 +127,8 @@ init_auth(_Auth, _Urls, {_Error, Message}) ->
 init_auth(Auth, Urls, UserData) ->
     {ok, #state{auth=Auth, urls=Urls, user=UserData}}.
 
+handle_call({next_page, Url}, _From, State) ->
+    {reply, request_url(get, Url), State};
 handle_call({member_info, MemberId}, _From, State) ->
     {reply, meetup_call(State, members, [{member_id, MemberId}]), State};
 handle_call({rsvps, EventId}, _From, State) ->
@@ -173,27 +181,34 @@ code_change(_OldVersion, State, _Extra) ->
 
 -type url() :: #url{}.
 
+
+request_url(Method, Url) ->
+    io:format("Requesting: ~s~n", [Url]),
+    check_http_results(
+      httpc:request(Method, {Url, [{"Accept-Charset", "utf-8"}]},
+                    [{autoredirect, false}], [{body_format, binary}]),
+      fun(X) -> parse_response(X) end).
+
+
 %% Use meetup_call/3 if the API call involves query parameters with no
 %% URL modifications
 -spec meetup_call(state(), atom(), list()) -> any().
 meetup_call(State, What, UrlArgs) ->
     UrlDetails = proplists:get_value(What, State#state.urls),
-    request_url(UrlDetails#url.method,
-                {url, UrlDetails#url.url, UrlArgs ++ UrlDetails#url.args},
-                State#state.auth,
-                fun(X) -> parse_response(X) end
-               ).
+    make_request(UrlDetails#url.method,
+                 {url, UrlDetails#url.url, UrlArgs ++ UrlDetails#url.args},
+                 State#state.auth
+                ).
 
 %% Use meetup_call/4 if there are strings to change in the body of the URL
 -spec meetup_call(state(), atom(), list(), list()) -> any().
 meetup_call(State, What, UrlArgs, Append) ->
     UrlDetails = proplists:get_value(What, State#state.urls),
     Url = io_lib:format(UrlDetails#url.url, Append),
-    request_url(UrlDetails#url.method,
-                {url, Url, UrlArgs ++ UrlDetails#url.args},
-                State#state.auth,
-                fun(X) -> parse_response(X) end
-               ).
+    make_request(UrlDetails#url.method,
+                 {url, Url, UrlArgs ++ UrlDetails#url.args},
+                 State#state.auth
+                ).
 
 -spec meetup_urls() -> list(url()).
 meetup_urls() ->
@@ -208,12 +223,9 @@ meetup_urls() ->
       { rsvps, #url{url=?BASE_URL("2/rsvps")} }
     ].
 
-request_url(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey}, Fun) ->
+make_request(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey}) ->
     FullUrl = oauth:uri(Url, [{key, ApiKey}|UrlArgs]),
-    io:format("Requesting: ~s~n", [FullUrl]),
-    check_http_results(
-      httpc:request(HttpMethod, {FullUrl, [{"Accept-Charset", "utf-8"}]},
-                    [{autoredirect, false}], [{body_format, binary}]), Fun).
+    request_url(HttpMethod, FullUrl).
 
 %%
 %% There are two possibilities depending on the API call:
