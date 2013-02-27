@@ -109,12 +109,12 @@ init([Auth]) ->
     Urls = meetup_urls(),
     init_auth(Auth, Urls, user_info(meetup_call(#state{auth=Auth, urls=Urls}, verify_creds, []))).
 
-user_info({Error, What}) ->
-    {Error, What};
-user_info(MemberResponse) ->
+user_info({ok, MemberResponse}) ->
     %% Verify we just got details for one user back, and return those details
-    1 = kvc:path([<<"meta">>, <<"count">>], MemberResponse),
-    hd(proplists:get_value(<<"results">>, MemberResponse)).
+    1 = proplists:get_value(count, MemberResponse),
+    hd(proplists:get_value(results, MemberResponse));
+user_info({Error, What}) ->
+    {Error, What}.
 
 init_auth(_Auth, _Urls, {_Error, Message}) ->
     {stop, Message};
@@ -225,12 +225,18 @@ request_url(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey}, 
 %%
 %% To retrieve the next link (for paging) from the headers we have to
 %% be careful, because both the prev and next links are given the same
-%% header name, and thus Headers is not useful as an Erlang proplist.
+%% header name, and thus Headers is not useful as an Erlang proplist
+%% for the links.
+%%
+%% Will return a list with 3 keys: next, count, and results
+%% next will be an empty list (or empty binary) if there is no next link
 extract_meta(Headers, undefined, Results) ->
-    [ { next, find_next_link(Headers) },
+    [ { next, unicode:characters_to_list(find_next_link(Headers)) },
+      { count, length(Results) },
       { results, Results } ];
 extract_meta(_Headers, MetaData, Results) ->
     [ { next, proplists:get_value(<<"next">>, MetaData) },
+      { count, proplists:get_value(<<"count">>, MetaData) },
       { results, proplists:get_value(<<"results">>, Results) } ].
 
 -spec check_http_results(tuple(), fun()) -> any().
@@ -247,7 +253,7 @@ check_http_results(Other, _Fun) ->
 %% {"link",
 %%  "<https://api.meetup.com/find/groups?page=3&offset=2&category=34>; rel=\"next\""},
 find_next_link([]) ->
-    undefined;
+    "";
 find_next_link([{"link", Header}|T]) ->
     case re:run(Header, "<(http.*)>;\\s*rel=.next") of
         {match, Matches} ->
