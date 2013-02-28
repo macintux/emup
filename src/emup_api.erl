@@ -56,41 +56,41 @@ stop() ->
     gen_server:cast(?SERVER, stop).
 
 members(GroupId) ->
-    gen_server:call(?SERVER, {members, GroupId}, 10000).
+    gen_server:call(?SERVER, {members, GroupId}, 30000).
 
 member_info(MemberId) ->
-    gen_server:call(?SERVER, {member_info, MemberId}, infinity).
+    gen_server:call(?SERVER, {member_info, MemberId}, 30000).
 
 groups(member_of) ->
-    gen_server:call(?SERVER, {groups, {member_id, authorized}}).
+    gen_server:call(?SERVER, {groups, {member_id, authorized}}, 30000).
 
 groups(member_of, MemberId) ->
-    gen_server:call(?SERVER, {groups, {member_id, MemberId}}).
+    gen_server:call(?SERVER, {groups, {member_id, MemberId}}, 30000).
 
 events(group, GroupId) ->
-    gen_server:call(?SERVER, {events, {group_id, GroupId}});
+    gen_server:call(?SERVER, {events, {group_id, GroupId}}, 30000);
 events(member, MemberId) ->
-    gen_server:call(?SERVER, {events, {member_id, MemberId}});
+    gen_server:call(?SERVER, {events, {member_id, MemberId}}, 30000);
 %% See note below
 events(text, Topic) ->
-    gen_server:call(?SERVER, {events, {text, Topic}}).
+    gen_server:call(?SERVER, {events, {text, Topic}}, 30000).
 
 event_info(EventId) when is_number(EventId) ->
-    gen_server:call(?SERVER, {event_info, integer_to_list(EventId)});
+    gen_server:call(?SERVER, {event_info, integer_to_list(EventId)}, 30000);
 event_info(EventId) ->
-    gen_server:call(?SERVER, {event_info, EventId}).
+    gen_server:call(?SERVER, {event_info, EventId}, 30000).
 
 group_info(GroupId) ->
-    gen_server:call(?SERVER, {group_info, GroupId}).
+    gen_server:call(?SERVER, {group_info, GroupId}, 30000).
 
 rsvps(EventId) ->
-    gen_server:call(?SERVER, {rsvps, EventId}).
+    gen_server:call(?SERVER, {rsvps, EventId}, 30000).
 
 
 %% We hand the next page URL back to the client, and the client gives
 %% it back to us if more results are desired
 next_page(Url) ->
-    gen_server:call(?SERVER, {next_page, Url}).
+    gen_server:call(?SERVER, {next_page, Url}, 30000).
 
 %% Note on event topic searches: they will match on group metadata as
 %% well as event description/title/URL, so there will be false
@@ -101,13 +101,13 @@ next_page(Url) ->
 %% notable meeting that included the search value in the description.
 
 events(member) ->
-    gen_server:call(?SERVER, {events, {member_id, authorized}}).
+    gen_server:call(?SERVER, {events, {member_id, authorized}}, 30000).
 
 find_groups(Params) ->
-    gen_server:call(?SERVER, {groups, {params, Params}}, 10000).
+    gen_server:call(?SERVER, {groups, {params, Params}}, 30000).
 
 find_groups(search, Text) ->
-    gen_server:call(?SERVER, {groups, {search_text, Text}}, 10000).
+    gen_server:call(?SERVER, {groups, {search_text, Text}}, 30000).
 
 
 %% behavior implementation
@@ -241,13 +241,13 @@ make_request(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey})
 %% for the links.
 %%
 %% Will return a list with 3 keys: next, count, and results
-%% next will be an empty list (or empty binary) if there is no next link
+%% next will be an empty string if there is no next link
 extract_meta(Headers, undefined, Results) ->
-    [ { next, unicode:characters_to_list(find_next_link(Headers)) },
+    [ { next, find_next_link(Headers) },
       { count, length(Results) },
       { results, Results } ];
 extract_meta(_Headers, MetaData, Results) ->
-    [ { next, proplists:get_value(<<"next">>, MetaData) },
+    [ { next, binary_to_list(proplists:get_value(<<"next">>, MetaData)) },
       { count, proplists:get_value(<<"count">>, MetaData) },
       { results, proplists:get_value(<<"results">>, Results) } ].
 
