@@ -9,8 +9,9 @@
 
 %% Our API
 -export([single_auth/1, start_link/1, stop/0, next_page/1,
-         members/1, member_info/1, event_info/1, group_info/1,
-         groups/1, groups/2, events/1, events/2, find_groups/1, find_groups/2, rsvps/1
+         members/1, member_info/1, event_info/1, group_info/1, categories/0,
+         groups/1, groups/2, events/1, events/2, find_events/1,
+         find_groups/1, find_groups/2, rsvps/1
         ]).
 
 %% gen_server
@@ -54,6 +55,9 @@ start_link(Auth) ->
 
 stop() ->
     gen_server:cast(?SERVER, stop).
+
+categories() ->
+    gen_server:call(?SERVER, categories, 10000).
 
 members(GroupId) ->
     gen_server:call(?SERVER, {members, GroupId}, 30000).
@@ -103,6 +107,10 @@ next_page(Url) ->
 events(member) ->
     gen_server:call(?SERVER, {events, {member_id, authorized}}, 30000).
 
+%% Arbitrary search parameters
+find_events(Params) ->
+    gen_server:call(?SERVER, {events, {params, Params}}, 30000).
+
 find_groups(Params) ->
     gen_server:call(?SERVER, {groups, {params, Params}}, 30000).
 
@@ -129,6 +137,8 @@ init_auth(Auth, Urls, UserData) ->
 
 handle_call({next_page, Url}, _From, State) ->
     {reply, request_url(get, Url), State};
+handle_call(categories, _From, State) ->
+    {reply, meetup_call(State, categories, []), State};
 handle_call({member_info, MemberId}, _From, State) ->
     {reply, meetup_call(State, members, [{member_id, MemberId}]), State};
 handle_call({rsvps, EventId}, _From, State) ->
@@ -139,6 +149,8 @@ handle_call({groups, {search_text, Search}}, _From, State) ->
     {reply, meetup_call(State, find_groups, [{text, Search}, {radius, "global"}]), State};
 handle_call({groups, {params, Params}}, _From, State) ->
     {reply, meetup_call(State, find_groups, Params), State};
+handle_call({events, {params, Params}}, _From, State) ->
+    {reply, meetup_call(State, events, Params), State};
 handle_call({members, GroupId}, _From, State) ->
     {reply, meetup_call(State, members, [{group_id, GroupId}]), State};
 handle_call({group_info, GroupId}, _From, State) ->
@@ -216,6 +228,7 @@ meetup_urls() ->
       { verify_creds, #url{url=?BASE_URL("2/members"),
                            args=[{"member_id", "self"}] } },
       { groups, #url{url=?BASE_URL("2/groups")} },
+      { categories, #url{url=?BASE_URL("2/categories")} },
       { events, #url{url=?BASE_URL("2/events")} },
       { open_events, #url{url=?BASE_URL("2/open_events")} },
       { find_groups, #url{url=?BASE_URL("find/groups")} },

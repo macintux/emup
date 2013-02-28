@@ -75,6 +75,35 @@ support may arrive someday.
        [{<<"id">>,14492981},{<<"name">>,<<"Mike Stringer">>}]},
       ...
 
+     20> emup:local_events(34, "Indianapolis", {{2013, 03, 01}, {0, 0, 0}}, {{2013, 03, 10}, {0, 0, 0}}).
+     [#em_event{id = <<"101825002">>,status = <<"upcoming">>,
+           name = <<"Indiana Podcaster's Meetup">>,
+           description = <<"<p>Join fellow podcasters from across Indiana! We're looking to connect podcasters to help g"...>>,
+           start = {{2013,3,1},{19,0,0}},
+           duration = 0,utc_offset = -18000,headcount = 0,rsvp = 7,
+           rsvp_limit = undefined,
+           url = <<"http://www.meetup.com/Indy-Podcasting-Network/events/101825002/">>,
+           group_id = 5271952,
+           group_name = <<"Indy Podcasting Network">>,
+           venue = #em_venue{id = 1358330,name = <<"Tilt Studio">>},
+           location = #em_location{city = <<"Indianapolis">>,
+                                   state = <<"IN">>,country = <<"us">>,lat = 39.766304,
+                                   lon = -86.159322}},
+     #em_event{id = <<"qsghpcyrfbdb">>,status = <<"upcoming">>,
+           name = <<"Open Project Workshop">>,
+           description = <<"<p>Come in and meet other makers, and show off projects. Right now the space is under co"...>>,
+           start = {{2013,3,2},{13,0,0}},
+           duration = 0,utc_offset = -18000,headcount = 0,rsvp = 2,
+           rsvp_limit = undefined,
+           url = <<"http://www.meetup.com/Club-Cyberia/events/106176402/">>,
+           group_id = 3329272,group_name = <<"Club Cyberia">>,
+           venue = #em_venue{id = 5780072,
+                             name = <<"Club Cyberia (In the Indy Self Stora"...>>},
+           location = #em_location{city = <<"Indianapolis">>,
+                                   state = <<"IN">>,country = <<"us">>,lat = 39.811115,
+                                   lon = -86.050484}},
+       ...
+
 ## Notes on development
 
 Paging is surprisingly tricky. There are two different ways in which

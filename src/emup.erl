@@ -8,8 +8,8 @@
 -module(emup).
 -export([start/1]).
 
--export([event_search/1, event_search/2, my_events/2,
-         event_topic_filter/3, event_upcoming_filter/1, event_to_record/1,
+-export([event_search/1, event_search/2, member_events/2, member_events/3,
+         event_topic_filter/3, event_upcoming_filter/1, event_to_record/1, local_events/4,
          group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
          csv_event_renderer/1]).
@@ -44,6 +44,7 @@ event_search(Topic, Filter) ->
                            proplists:get_value(<<"results">>,
                                                emup_api:events(text, Topic)))).
 
+%% Leverage emup_api:next_page() to pull down all results
 all_results({ok, Batch1}) ->
     page_results(proplists:get_value(next, Batch1), proplists:get_value(results, Batch1)).
 
@@ -53,11 +54,33 @@ page_results(Url, Accum) ->
     {ok, NextBatch} = emup_api:next_page(Url),
     page_results(proplists:get_value(next, NextBatch), proplists:get_value(results, NextBatch) ++ Accum).
 
-my_events(StartDate, EndDate) ->
-    Events = all_results(emup_api:events(member)),
+member_events(StartDate, EndDate, MemberID) ->
+    filter_events_by_date(all_results(emup_api:events(member, MemberID)),
+                          StartDate, EndDate).
+
+member_events(StartDate, EndDate) ->
+    filter_events_by_date(all_results(emup_api:events(member)),
+                          StartDate, EndDate).
+
+filter_events_by_date(Events, StartDate, EndDate) ->
     lists:sort(fun(A, B) -> A#em_event.start =< B#em_event.start end,
                lists:filter(fun(X) -> X#em_event.start >= StartDate andalso X#em_event.start =< EndDate end,
                             lists:map(fun event_to_record/1, Events))).
+
+%% Category is an integer from Meetup's API; emup_api:categories() will provide the list.
+%% 34 is tech. Dates should be local to the city.
+local_events(Category, City, StartDate, EndDate) ->
+    Groups = all_results(emup_api:find_groups([{category, Category}, {location, City}])),
+    collect_events_from_groups(Groups, StartDate, EndDate, []).
+
+collect_events_from_groups([], StartDate, EndDate, Accum) ->
+    filter_events_by_date(Accum, StartDate, EndDate);
+collect_events_from_groups([H|T], StartDate, EndDate, Accum) ->
+    collect_events_from_groups(T, StartDate, EndDate,
+                               all_results(
+                               emup_api:events(group,
+                                               proplists:get_value(<<"id">>, H)))
+                               ++ Accum).
 
 
 render_events(Topic, Renderer) ->
