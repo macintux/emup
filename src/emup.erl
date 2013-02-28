@@ -8,13 +8,18 @@
 -module(emup).
 -export([start/1]).
 
--export([event_search/1, event_search/2,
+-export([event_search/1, event_search/2, my_events/2,
          event_topic_filter/3, event_upcoming_filter/1, event_to_record/1,
          group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
          csv_event_renderer/1]).
 
 -include("emup.hrl").
+
+%% 719528 days from Jan 1, 0 to Jan 1, 1970
+%%  *86400 seconds/day
+-define(SEC_TO_EPOCH, 62167219200).
+
 
 start(Key) ->
     inets:start(),
@@ -38,6 +43,22 @@ event_search(Topic, Filter) ->
               lists:filter(Filter,
                            proplists:get_value(<<"results">>,
                                                emup_api:events(text, Topic)))).
+
+all_results({ok, Batch1}) ->
+    page_results(proplists:get_value(next, Batch1), proplists:get_value(results, Batch1)).
+
+page_results(Url, Accum) when length(Url) =:= 0 ->
+    lists:reverse(Accum);
+page_results(Url, Accum) ->
+    {ok, NextBatch} = emup_api:next_page(Url),
+    page_results(proplists:get_value(next, NextBatch), proplists:get_value(results, NextBatch) ++ Accum).
+
+my_events(StartDate, EndDate) ->
+    Events = all_results(emup_api:events(member)),
+    lists:sort(fun(A, B) -> A#em_event.start =< B#em_event.start end,
+               lists:filter(fun(X) -> X#em_event.start >= StartDate andalso X#em_event.start =< EndDate end,
+                            lists:map(fun event_to_record/1, Events))).
+
 
 render_events(Topic, Renderer) ->
     lists:map(fun(X) -> render_event(X, Renderer) end, event_search(Topic)).
@@ -96,7 +117,8 @@ event_to_record(Event) ->
             name = proplists:get_value(<<"name">>, Event),
             description = proplists:get_value(<<"description">>, Event),
             start = calendar:gregorian_seconds_to_datetime(proplists:get_value(<<"time">>, Event, 0) div 1000
-                                                           + proplists:get_value(<<"utc_offset">>, Event, 0) div 1000),
+                                                           + proplists:get_value(<<"utc_offset">>, Event, 0) div 1000
+                                                           + ?SEC_TO_EPOCH),
             duration = proplists:get_value(<<"duration">>, Event, 0) div 1000,
             utc_offset = proplists:get_value(<<"utc_offset">>, Event, 0) div 1000,
             headcount = proplists:get_value(<<"headcount">>, Event),
@@ -221,7 +243,7 @@ member_list(Group) ->
 
 
 timestamp(Seconds) when is_integer(Seconds) ->
-    timestamp(calendar:gregorian_seconds_to_datetime(Seconds));
+    timestamp(calendar:gregorian_seconds_to_datetime(Seconds + ?SEC_TO_EPOCH));
 timestamp({{Year, Month, Day}, {Hour, Min, _Sec}}) ->
     io_lib:format("~4.10.0B/~2.10.0B/~2.10.0B ~2B:~2.10.0B",
                   [Year + 1970, Month, Day, Hour, Min]).
