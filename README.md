@@ -54,55 +54,11 @@ support may arrive someday.
      {<<"country">>,<<"US">>},
      {<<"city">>,<<"Chicago">>},
 
-    11> emup_api:find_groups([{category, 34}, {zip, 60601}]).
-    [[{<<"id">>,2949512},
-      {<<"name">>,<<"Data Science Chicago">>},
-      {<<"link">>,
-       <<"http://www.meetup.com/Data-Science-Chicago/">>},
-      {<<"urlname">>,<<"Data-Science-Chicago">>},
-      {<<"description">>,
-       <<"<p>Data Science Chicago brings together people interested in data science:</p>\n<ul>\n"...>>},
-      {<<"created">>,1323882866000},
-      {<<"city">>,<<"Chicago">>},
-      {<<"country">>,<<"US">>},
-      {<<"state">>,<<"IL">>},
-      {<<"join_mode">>,<<"open">>},
-      {<<"visibility">>,<<"public">>},
-      {<<"lat">>,41.880001068115234},
-      {<<"lon">>,-87.62999725341797},
-      {<<"members">>,824},
-      {<<"organizer">>,
-       [{<<"id">>,14492981},{<<"name">>,<<"Mike Stringer">>}]},
-      ...
-
-     20> emup:local_events(34, "Indianapolis", {{2013, 03, 01}, {0, 0, 0}}, {{2013, 03, 10}, {0, 0, 0}}).
-     [#em_event{id = <<"101825002">>,status = <<"upcoming">>,
-           name = <<"Indiana Podcaster's Meetup">>,
-           description = <<"<p>Join fellow podcasters from across Indiana! We're looking to connect podcasters to help g"...>>,
-           start = {{2013,3,1},{19,0,0}},
-           duration = 0,utc_offset = -18000,headcount = 0,rsvp = 7,
-           rsvp_limit = undefined,
-           url = <<"http://www.meetup.com/Indy-Podcasting-Network/events/101825002/">>,
-           group_id = 5271952,
-           group_name = <<"Indy Podcasting Network">>,
-           venue = #em_venue{id = 1358330,name = <<"Tilt Studio">>},
-           location = #em_location{city = <<"Indianapolis">>,
-                                   state = <<"IN">>,country = <<"us">>,lat = 39.766304,
-                                   lon = -86.159322}},
-     #em_event{id = <<"qsghpcyrfbdb">>,status = <<"upcoming">>,
-           name = <<"Open Project Workshop">>,
-           description = <<"<p>Come in and meet other makers, and show off projects. Right now the space is under co"...>>,
-           start = {{2013,3,2},{13,0,0}},
-           duration = 0,utc_offset = -18000,headcount = 0,rsvp = 2,
-           rsvp_limit = undefined,
-           url = <<"http://www.meetup.com/Club-Cyberia/events/106176402/">>,
-           group_id = 3329272,group_name = <<"Club Cyberia">>,
-           venue = #em_venue{id = 5780072,
-                             name = <<"Club Cyberia (In the Indy Self Stora"...>>},
-           location = #em_location{city = <<"Indianapolis">>,
-                                   state = <<"IN">>,country = <<"us">>,lat = 39.811115,
-                                   lon = -86.050484}},
-       ...
+    55> ChicagoGroups = emup:local_groups(34, "Chicago").
+    56> ChicagoEvents = emup:local_events(ChicagoGroups).
+    57> emup:check_date(ChicagoGroups, ChicagoEvents, {2013, 03, 18}).
+    2013/03/18 17:30 (  62/1109)    Chicago area Hadoop User Group (CHUG)                                      SQL Server PDW w. Polybase:  What, Why, How
+    2013/03/18 18:00 (  44/ 786)                             momo-chicago                                                Mobile Game Apps and Sencha Touch
 
 ## Notes on development
 

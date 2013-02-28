@@ -199,6 +199,7 @@ request_url(Method, Url) ->
     check_http_results(
       httpc:request(Method, {Url, [{"Accept-Charset", "utf-8"}]},
                     [{autoredirect, false}], [{body_format, binary}]),
+      Method, Url,
       fun(X) -> parse_response(X) end).
 
 
@@ -264,13 +265,21 @@ extract_meta(_Headers, MetaData, Results) ->
       { count, proplists:get_value(<<"count">>, MetaData) },
       { results, proplists:get_value(<<"results">>, Results) } ].
 
--spec check_http_results(tuple(), fun()) -> any().
-check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, Fun) ->
+-spec check_http_results(tuple(), term(), string(), fun()) -> any().
+check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, _Method, _Url, Fun) ->
     ParsedJson = Fun(Body),
     {ok, extract_meta(Headers, proplists:get_value(<<"meta">>, ParsedJson), ParsedJson) };
-check_http_results({ok, {{_HttpVersion, _Status, StatusMsg}, _Headers, Body}}, _Fun) ->
+check_http_results({ok, {{_HttpVersion, 400, StatusMsg}, Headers, Body}}, Method, Url, _Fun) ->
+    %% Throttled, try again
+    timer:sleep(2000),
+    request_url(Method, Url);
+check_http_results({ok, {{_HttpVersion, 429, StatusMsg}, Headers, Body}}, Method, Url, _Fun) ->
+    %% Throttled, try again
+    timer:sleep(2000),
+    request_url(Method, Url);
+check_http_results({ok, {{_HttpVersion, _Status, StatusMsg}, Headers, Body}}, _Method, _Url, _Fun) ->
     {error, extract_error_message(StatusMsg, Body) };
-check_http_results(Other, _Fun) ->
+check_http_results(Other, _Method, _Url, _Fun) ->
     {unknown, Other}.
 
 %%
