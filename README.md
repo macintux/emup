@@ -100,15 +100,16 @@ more information. I think it depends on the API generation.
 
 This generation gap also impacts the interpretation of JSON in
 general.  The corresponding hash key to `meta` in the v2 API is
-`results`, whose value is a list of entries, while the older `/find`
-APIs return just a list of entries with no `meta` or `results` key
-wrappers.
+`results`, whose value is a list of entries, while the v3 API returns
+just a list of entries with no `meta` or `results` key wrappers.
 
-And making it worse, the old API results don't maintain any concept of
-a cursor, so if you have 201 results, the default (and maximum) page
-size (200) will give you all but 1, and the next URL that the API
-returns to grab the last one will also return 200 results; it's up to
-the API client to filter out the duplicates.
+The new API results don't maintain any concept of a cursor, so if you
+have 201 results, the default (and maximum) page size (200) will give
+you all but 1, and the next URL that the API returns to grab the last
+one will also return 200 results; it's up to the API client to filter
+out the duplicates.
+
+**This is a bug and has been filed.**
 
 I have implemented a simple `next_page` function to take the URL and
 return more results, but I don't have a good solution for removing
