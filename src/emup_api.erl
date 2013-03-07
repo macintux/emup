@@ -271,11 +271,11 @@ check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, _Meth
     {ok, extract_meta(Headers, proplists:get_value(<<"meta">>, ParsedJson), ParsedJson) };
 check_http_results({ok, {{_HttpVersion, 400, StatusMsg}, Headers, Body}}, Method, Url, _Fun) ->
     %% Throttled, try again
-    timer:sleep(2000),
+    timer:sleep(4000),
     request_url(Method, Url);
 check_http_results({ok, {{_HttpVersion, 429, StatusMsg}, Headers, Body}}, Method, Url, _Fun) ->
     %% Throttled, try again
-    timer:sleep(2000),
+    timer:sleep(4000),
     request_url(Method, Url);
 check_http_results({ok, {{_HttpVersion, _Status, StatusMsg}, Headers, Body}}, _Method, _Url, _Fun) ->
     {error, extract_error_message(StatusMsg, Body) };

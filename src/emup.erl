@@ -116,7 +116,7 @@ local_events(Groups) ->
 collect_events_from_groups([], Accum) ->
     Accum;
 collect_events_from_groups([H|T], Accum) ->
-    timer:sleep(1000), %% Self-throttle
+    timer:sleep(3000), %% Self-throttle
     collect_events_from_groups(T, all_results(
                                     emup_api:events(group,
                                                     proplists:get_value(<<"id">>, H)))
