@@ -8,7 +8,7 @@
 -module(emup).
 -export([start/1]).
 
--export([event_search/1, event_search/2, member_events/2, member_events/3, remove_duplicates_by_id/1,
+-export([event_search/1, event_search/2, member_events/2, member_events/3,
          event_topic_filter/3, event_upcoming_filter/1, event_to_record/1, local_events/1, local_groups/2,
          group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
@@ -82,33 +82,12 @@ filter_events_by_date(Events, StartDate, EndDate) ->
                lists:filter(fun(X) -> X#em_event.start >= StartDate andalso X#em_event.start =< EndDate end,
                             lists:map(fun event_to_record/1, Events))).
 
-remove_duplicates_by_id(List) ->
-    SortedList = lists:sort(
-                   fun(A, B) ->
-                           proplists:get_value(<<"id">>, A) =< proplists:get_value(<<"id">>, B)
-                   end,
-                   List),
-    remove_id_dupes_aux(SortedList, -999999, []).
-
-remove_id_dupes_aux([], _LastId, Accum) ->
-    lists:reverse(Accum);
-remove_id_dupes_aux([H|T], LastId, Accum) ->
-    case proplists:get_value(<<"id">>, H) of
-        LastId ->
-            remove_id_dupes_aux(T, LastId, Accum);
-        OtherId ->
-            remove_id_dupes_aux(T, OtherId, [H] ++ Accum)
-    end.
-
 %% Category is an integer from Meetup's API; emup_api:categories() will provide the list.
 %% 34 is tech. Dates should be local to the city.
 %%
 %% This is a very intensive request, so throttle ourselves to keep from annoying Meetup.com.
-%%
-%% Also filter out duplicate groups, since as of this writing there's
-%% a bug with the Meetup API paging logic that results in duplication
 local_groups(Category, City) ->
-    remove_duplicates_by_id(all_results(emup_api:find_groups([{category, Category}, {location, City}]))).
+    all_results(emup_api:find_groups([{category, Category}, {location, City}])).
 
 local_events(Groups) ->
     collect_events_from_groups(Groups, []).
