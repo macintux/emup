@@ -9,11 +9,15 @@
 -export([start/1]).
 
 -export([event_search/1, event_search/2, member_events/2, member_events/3,
-         event_topic_filter/3, event_upcoming_filter/1, event_to_record/1, local_events/1, local_groups/2,
+         event_topic_filter/3, event_upcoming_filter/1, local_events/1, local_groups/2,
          group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
          filter_events_by_date/3, check_date/3,
-         csv_event_renderer/1]).
+         csv_event_renderer/1,
+         location_to_record/1, venue_to_record/1,
+         event_to_record/1, organizer_to_record/1,
+         person_to_record/1, group_to_record/1
+        ]).
 
 -include("emup.hrl").
 
@@ -225,7 +229,8 @@ group_to_record(Group) ->
             created = proplists:get_value(<<"created">>, Group, 0) div 1000,
             member_label = proplists:get_value(<<"who">>, Group),
             organizer = organizer_to_record(
-                          proplists:get_value(<<"organizer">>, Group))
+                          proplists:get_value(<<"organizer">>, Group)),
+            location = location_to_record(Group)
           }.
 
 event_rsvps(event_id, EventId) ->
