@@ -8,7 +8,7 @@
 -module(emup).
 -export([start/1]).
 
--export([event_search/1, event_search/2, member_events/2, member_events/3,
+-export([event_search/1, member_events/2, member_events/3,
          event_topic_filter/3, event_upcoming_filter/1, local_events/1, local_groups/2,
          group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
@@ -16,7 +16,8 @@
          csv_event_renderer/1,
          location_to_record/1, venue_to_record/1,
          event_to_record/1, organizer_to_record/1,
-         person_to_record/1, group_to_record/1
+         person_to_record/1, group_to_record/1,
+         fix_location/1
         ]).
 
 -include("emup.hrl").
@@ -32,22 +33,32 @@ start(Key) ->
     emup_sup:start_link(),
     emup_sup:start_api(emup_api:single_auth(Key)).
 
+fix_location(Event) ->
+    check_group_location(proplists:get_value(<<"venue">>, Event),
+                         kvc:path([<<"group">>, <<"id">>], Event),
+                         Event).
 
-%% event_search:
-%%    1  Searches for the specified topic
-%%    2  Filters events by the optional second argument
-%%    3  Converts the JSON data to event records
-%%
-%% The meetup.com API itself sorts the results of the event search in
-%% ascending order
+check_group_location(undefined, GroupId, Event) ->
+    NewEvent = proplists:delete(<<"city">>,
+                                proplists:delete(<<"state">>,
+                                                 proplists:delete(<<"country">>, Event))),
+    {ok, Results} = emup_api:group_info(GroupId),
+    Group = hd(proplists:get_value(results, Results)),
+    [{<<"venue">>,
+      [
+       {<<"city">>, proplists:get_value(<<"city">>, Group)},
+       {<<"state">>, proplists:get_value(<<"state">>, Group)},
+       {<<"country">>, proplists:get_value(<<"country">>, Group)}
+      ]
+     }]
+        ++ NewEvent;
+check_group_location(_, _GroupId, Event) ->
+    Event.
+
+
 event_search(Topic) ->
-    event_search(Topic, fun(_X) -> true end).
-
-event_search(Topic, Filter) ->
-    lists:map(fun event_to_record/1,
-              lists:filter(Filter,
-                           proplists:get_value(<<"results">>,
-                                               emup_api:events(text, Topic)))).
+    {ok, Results} = emup_api:events(text, Topic),
+    proplists:get_value(results, Results).
 
 %% Leverage emup_api:next_page() to pull down all results
 all_results({ok, Batch1}) ->
