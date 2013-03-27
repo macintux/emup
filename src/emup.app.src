@@ -6,7 +6,8 @@
   {modules, [
              emup,
              emup_app,
-             emup_sup
+             emup_sup,
+             emup_riak
              ]},
   {applications, [
                   kernel,
