@@ -6,21 +6,13 @@
 %%% Created : 8 Mar 2013 by John Daily <jd@epep.us>
 
 -module(emup_riak).
+-export([store_object/5]).
 
--include("emup.hrl").
-
--compile(export_all).
-
-store_event(Event, R) ->
-    Bucket = <<"meetup_events">>,
-    Name = proplists:get_value(<<"name">>, Event),
-    put_object(create_object(Bucket, Name, Event), R).
-
-
-store_group(Group, R) ->
-    Bucket = <<"meetup_groups">>,
-    Name = proplists:get_value(<<"name">>, Group),
-    put_object(create_object(Bucket, Name, Group), R).
+store_object(R, Bucket, Key, Value, TwoI) ->
+    put_object(
+      riakc_obj:set_secondary_index(create_object(Bucket, Key, Value),
+                                    TwoI, R),
+      R).
 
 put_object(Object, R) ->
     riakc_pb_socket:put(R, Object).
