@@ -252,7 +252,9 @@ event_rsvps(event_id, EventId) ->
 
 
 group_details(Search) ->
-    lists:map(fun group_digger/1, emup_api:find_groups(search, Search)).
+    {ok, GroupResults} = emup_api:find_groups(search, Search),
+    Groups = proplists:get_value(results, GroupResults),
+    lists:map(fun group_digger/1, Groups).
 
 group_details(group_id, GroupId) ->
     pick_first_group(proplists:get_value(<<"results">>, emup_api:group_info(GroupId))).
