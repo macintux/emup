@@ -136,8 +136,12 @@ init_auth(_Auth, _Urls, {_Error, Message}) ->
 init_auth(Auth, Urls, UserData) ->
     {ok, #state{auth=Auth, urls=Urls, user=UserData}}.
 
--spec handle_call(any(), pid(), state()) ->
-                         {reply, XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+-spec handle_call(any(), {pid(), _}, state()) ->
+                         {reply,
+                          {ok, list()} |
+                          {unexpected_status, string()} |
+                          {error, term()}
+                         }.
 handle_call({next_page, Url}, _From, State) ->
     {reply, request_url(get, Url), State};
 handle_call(categories, _From, State) ->
