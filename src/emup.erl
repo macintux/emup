@@ -10,10 +10,10 @@
 
 -export([event_search/1, member_events/2, member_events/3,
          event_topic_filter/3, event_upcoming_filter/1, local_events/1, local_groups/2,
-         group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
+         render_group_details/3, group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
          filter_events_by_date/3, check_date/3,
-         csv_event_renderer/1,
+         csv_event_renderer/1, group_record_to_string/1,
          location_to_record/1, venue_to_record/1,
          event_to_record/1, organizer_to_record/1,
          person_to_record/1, group_to_record/1,
@@ -278,10 +278,19 @@ services_to_proplist(undefined) ->
 services_to_proplist([]) ->
     [];
 services_to_proplist(Services) ->
-    io:format("~p~n", [Services]),
-    lists:map(fun(X) -> { X, proplists:get_value(identifier,
-                                                 proplists:get_value(X, Services)) } end,
+    lists:map(fun(X) -> { X, service_value_to_binary(
+                               proplists:get_value(identifier,
+                                                   proplists:get_value(X, Services))) } end,
               proplists:get_keys(Services)).
+
+%% Facebook identifiers are integers; much easier to treat them as
+%% binary strings, same as other identifiers.
+-spec service_value_to_binary(binary()|integer()) -> binary().
+service_value_to_binary(Value) when is_integer(Value) ->
+    list_to_binary(integer_to_list(Value));
+service_value_to_binary(Value) ->
+    Value.
+
 
 %% @doc Convert a JSON person object to a record.
 %%
@@ -328,12 +337,64 @@ event_rsvps(event_id, EventId) ->
               lists:filter(fun(X) -> proplists:get_value(response, X) =:= <<"yes">> end,
                            proplists:get_value(results, emup_api:rsvps(EventId)))).
 
+%% @doc Invoke renderer on group + member detail when provided a list
+-spec render_group_details(list(list(tuple())),
+                           fun((em_group()) -> ok),
+                           fun((em_person()) -> ok)
+                          ) -> ok.
+render_group_details(Groups, RenderGroup, RenderPerson) ->
+    lists:foreach(fun(G) -> RenderGroup(proplists:get_value(group, G)),
+                            lists:foreach(fun(M) -> RenderPerson(M) end,
+                                          lists:sort(fun(A, B) ->
+                                                             string:to_lower(
+                                                               binary_to_list(A#em_person.name)) <
+                                                                 string:to_lower(
+                                                                   binary_to_list(B#em_person.name))
+                                                     end,
+                                                     proplists:get_value(members, G)))
+                            end,
+                  Groups).
+
+%% @doc Convert group record to string
+-spec group_record_to_string(em_group()) -> string().
+group_record_to_string(Group) ->
+    io_lib:format("=== ~-15ts ~ts", [(Group#em_group.location)#em_location.city,
+                  Group#em_group.name]).
+
+%% @doc Convert person record to string
+-spec person_record_to_string(em_person()) -> string().
+person_record_to_string(Person) ->
+    io_lib:format("~-60ts~n~ts", [Person#em_person.name,
+                                 aliases_to_string(Person#em_person.aliases)]).
+
+%% @doc Convert list of aliases (Twitter, LinkedIn, etc) to string
+-spec aliases_to_string(list(tuple())) -> iolist().
+aliases_to_string(Aliases) ->
+    aliases_to_string_aux(Aliases, []).
+
+-spec aliases_to_string_aux(list(tuple()), iolist()) -> iolist().
+aliases_to_string_aux([], Buffer) ->
+    Buffer;
+aliases_to_string_aux([{Service, Alias}|T], Buffer) when is_integer(Alias)->
+    aliases_to_string_aux(T, [Buffer,
+                              io_lib:format("    +~-15ts ~B~n",
+                                            [atom_to_list(Service),
+                                             Alias])]);
+aliases_to_string_aux([{Service, Alias}|T], Buffer) ->
+    aliases_to_string_aux(T, [Buffer,
+                              io_lib:format("    +~-15ts ~ts~n",
+                                            [atom_to_list(Service),
+                                             Alias])]).
+
+
+
 %% @doc Return a list of groups + members for a given search string.
--spec group_details(string()) -> list(tuple()).
+-spec group_details(string()) -> list(group_container()).
 group_details(Search) ->
     lists:map(fun group_digger/1,
               all_results(emup_api:find_groups(search, Search))).
 
+-spec group_details('group_id', string()) -> group_container().
 group_details(group_id, GroupId) ->
     pick_first_group(proplists:get_value(results, emup_api:group_info(GroupId))).
 
@@ -373,7 +434,6 @@ find_regex(Topic, Options) ->
 
 
 member_list(Group) ->
-    io:format("~p~n", [Group]),
     lists:map(fun person_to_record/1,
               all_results(emup_api:members(
                             proplists:get_value(id, Group)))).
