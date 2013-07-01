@@ -467,6 +467,8 @@ csv_event_renderer(#em_event{name=Title, start=Date, rsvp=Count,
 
 group_detail_to_csv(GroupId, Filename) ->
     {ok, CSV} = file:open(Filename, [write, {encoding, utf8}]),
+    io:fwrite(CSV, "\"User details\",\"Twitter\",\"LinkedIn\",\"Facebook\",\"Tumblr\",\"Flickr\"~n",
+              []),
     GroupRender = fun(X) ->
                           io:fwrite(CSV,
                                     "\"~ts\",\"~ts\",\"~ts\"~n",
@@ -511,7 +513,6 @@ group_detail_to_csv(GroupId, Filename) ->
 %% Đ
 -spec html_to_unicode(string()) -> string().
 html_to_unicode(String) ->
-    io:format("Matching against ~ts~n", [String]),
     {ok, Re} = re:compile("&#([0-9]+);", []),
     find_matches(re:run(String, Re, [global, {capture, all, binary}]),
                  String).
@@ -522,7 +523,6 @@ find_matches(nomatch, String) ->
 find_matches({match, []}, String) ->
     String;
 find_matches({match, [H|T]}, String) ->
-    io:format("~p / ~p / ~ts~n", [H, T, String]),
     [HTML, Bin] = H,
     find_matches({match, T},
                  replace_match(HTML, unicode_conversion(Bin), String)).
