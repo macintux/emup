@@ -13,7 +13,7 @@
          render_group_details/3, group_details/1, group_details/2, member_list/1, timestamp/1, timestamp/2, all_results/1,
          event_rsvps/2, render_event/2, render_events/2, simple_event_renderer/1, simple_event_renderer/2,
          filter_events_by_date/3, check_date/3,
-         csv_event_renderer/1, group_record_to_string/1,
+         csv_event_renderer/1, group_record_to_string/1, group_detail_to_csv/2,
          location_to_record/1, venue_to_record/1,
          event_to_record/1, organizer_to_record/1,
          person_to_record/1, group_to_record/1,
@@ -396,7 +396,7 @@ group_details(Search) ->
 
 -spec group_details('group_id', string()) -> group_container().
 group_details(group_id, GroupId) ->
-    pick_first_group(proplists:get_value(results, emup_api:group_info(GroupId))).
+    group_digger(pick_first_group(all_results(emup_api:group_info(GroupId)))).
 
 pick_first_group([]) ->
     no_such_group;
@@ -464,3 +464,74 @@ csv_event_renderer(#em_event{name=Title, start=Date, rsvp=Count,
     io_lib:format("\"~ts\",\"~ts\",\"~ts\",\"~s\",\"~ts\",\"~B\"~n",
                   [City, Group, Title, timestamp(Date),
                    Url, Count]).
+
+group_detail_to_csv(GroupId, Filename) ->
+    {ok, CSV} = file:open(Filename, [write, {encoding, utf8}]),
+    GroupRender = fun(X) ->
+                          io:fwrite(CSV,
+                                    "\"~ts\",\"~ts\",\"~ts\"~n",
+                                    [(X#em_group.location)#em_location.city,
+                                     X#em_group.name, X#em_group.url]) end,
+    PersonRender = fun(X) ->
+                           io:fwrite(CSV,
+                                     "\"~ts\",\"~ts\",\"~ts\",\"~ts\",\"~ts\",\"~ts\"~n",
+                                     [html_to_unicode(X#em_person.name),
+                                      proplists:get_value(twitter, X#em_person.aliases, ""),
+                                      proplists:get_value(linkedin, X#em_person.aliases, ""),
+                                      proplists:get_value(facebook, X#em_person.aliases, ""),
+                                      proplists:get_value(tumblr, X#em_person.aliases, ""),
+                                      proplists:get_value(flickr, X#em_person.aliases, "")])
+                   end,
+    render_group_details([group_details(group_id, GroupId)],
+                         GroupRender, PersonRender),
+    file:close(CSV).
+
+%% Meetup gives us "&#272;or&#273;e Torbica" instead of "Đorđe Torbica"
+%% 272 dec => 0110 hex => 0420 oct
+%% 3> io:format("~ts~n", [unicode:characters_to_list(<<196,144>>, utf8)]).
+%% Đ
+%% 4> io:format("~ts~n", [unicode:characters_to_list(<<196,145>>, utf8)]).
+%% đ
+%% (196,144 values stolen from http://www.utf8-chartable.de/unicode-utf8-table.pl?start=256&utf8=dec)
+%% io:format("~ts~n", [unicode:characters_to_list(<<272/utf8>>)]).
+%% Đ
+%% 25>     {ok, Re3} = re:compile("&#([0-9]+);", [unicode]).
+%% {ok,{re_pattern,1,1,
+%%                 <<69,82,67,80,103,0,0,0,0,8,0,0,7,0,0,0,1,0,0,0,38,0,59,
+%%                   ...>>}}
+%% 26> {match, List2} = re:run(<<"&#272;or&#273;e Torbica">>, Re3, [global, {capture, all, binary}]).
+%% {match,[[<<"&#272;">>,<<"272">>],[<<"&#273;">>,<<"273">>]]}
+%% 38> A = hd(tl(hd(List2))).
+%% <<"272">>
+%% 48> A2 = list_to_integer(binary_to_list(A)).
+%% 272
+%% 49> A3 = <<A2/utf8>>.
+%% <<196,144>>
+%% 50> io:format("~ts~n", [A3]).
+%% Đ
+-spec html_to_unicode(string()) -> string().
+html_to_unicode(String) ->
+    io:format("Matching against ~ts~n", [String]),
+    {ok, Re} = re:compile("&#([0-9]+);", []),
+    find_matches(re:run(String, Re, [global, {capture, all, binary}]),
+                 String).
+
+-spec find_matches(nomatch|{match, list()}, string()) -> string().
+find_matches(nomatch, String) ->
+    String;
+find_matches({match, []}, String) ->
+    String;
+find_matches({match, [H|T]}, String) ->
+    io:format("~p / ~p / ~ts~n", [H, T, String]),
+    [HTML, Bin] = H,
+    find_matches({match, T},
+                 replace_match(HTML, unicode_conversion(Bin), String)).
+
+-spec replace_match(string(), binary(), string()) -> string().
+replace_match(Old, UTF8, String) ->
+    re:replace(String, Old, UTF8, [global]).
+
+-spec unicode_conversion(binary()) -> binary().
+unicode_conversion(Bin) ->
+    Integer = list_to_integer(binary_to_list(Bin)),
+    <<Integer/utf8>>.
