@@ -7,6 +7,8 @@
 -module(emup_api).
 -behavior(gen_server).
 
+-include("emup.hrl").
+
 %% Our API
 -export([single_auth/1, start_link/1, stop/0, next_page/1,
          members/1, member_info/1, event_info/1, group_info/1, categories/0,
@@ -160,12 +162,12 @@ handle_call({events, {group_id, GroupId}}, _From, State) ->
 handle_call({events, {text, Topic}}, _From, State) ->
     {reply, meetup_call(State, open_events, [{text, Topic}]), State};
 handle_call({events, {member_id, authorized}}, _From, State) ->
-    MemberId = proplists:get_value(<<"id">>, State#state.user),
+    MemberId = proplists:get_value(id, State#state.user),
     {reply, meetup_call(State, events, [{member_id, MemberId}]), State};
 handle_call({events, {member_id, MemberId}}, _From, State) ->
     {reply, meetup_call(State, events, [{member_id, MemberId}]), State};
 handle_call({groups, {member_id, authorized}}, _From, State) ->
-    MemberId = proplists:get_value(<<"id">>, State#state.user),
+    MemberId = proplists:get_value(id, State#state.user),
     {reply, meetup_call(State, groups, [{member_id, MemberId}]), State};
 handle_call({groups, {member_id, MemberId}}, _From, State) ->
     {reply, meetup_call(State, groups, [{member_id, MemberId}]), State}.
@@ -223,7 +225,7 @@ meetup_call(State, What, UrlArgs, Append) ->
                  State#state.auth
                 ).
 
--spec meetup_urls() -> list(url()).
+-spec meetup_urls() -> list({atom(), url()}).
 meetup_urls() ->
     [ { members, #url{url=?BASE_URL("2/members")} },
       { verify_creds, #url{url=?BASE_URL("2/members"),
@@ -256,19 +258,20 @@ make_request(HttpMethod, {url, Url, UrlArgs}, #auth{type=apikey, apikey=ApiKey})
 %%
 %% Will return a list with 3 keys: next, count, and results
 %% next will be an empty string if there is no next link
+-spec extract_meta(list(), undefined|list(), list()) -> api_result().
 extract_meta(Headers, undefined, Results) ->
     [ { next, find_next_link(Headers) },
       { count, length(Results) },
       { results, Results } ];
 extract_meta(_Headers, MetaData, Results) ->
-    [ { next, binary_to_list(proplists:get_value(<<"next">>, MetaData)) },
-      { count, proplists:get_value(<<"count">>, MetaData) },
-      { results, proplists:get_value(<<"results">>, Results) } ].
+    [ { next, binary_to_list(proplists:get_value(next, MetaData)) },
+      { count, proplists:get_value(count, MetaData) },
+      { results, proplists:get_value(results, Results) } ].
 
--spec check_http_results(tuple(), term(), string(), fun()) -> any().
+-spec check_http_results(tuple(), term(), string(), fun()) -> {atom(), any()}.
 check_http_results({ok, {{_HttpVersion, 200, _StatusMsg}, Headers, Body}}, _Method, _Url, Fun) ->
     ParsedJson = Fun(Body),
-    {ok, extract_meta(Headers, proplists:get_value(<<"meta">>, ParsedJson), ParsedJson) };
+    {ok, extract_meta(Headers, proplists:get_value(meta, ParsedJson), ParsedJson) };
 check_http_results({ok, {{_HttpVersion, 400, StatusMsg}, Headers, Body}}, Method, Url, _Fun) ->
     %% Throttled, try again
     timer:sleep(4000),
@@ -309,6 +312,6 @@ extract_error_message(HttpStatusMsg, _Body) ->
 
 -spec parse_response(binary() | string()) -> any().
 parse_response(JSON) when is_binary(JSON) ->
-    jsx:decode(JSON);
+    jsx:decode(JSON, [{labels, atom}]);
 parse_response(JSON) ->
-    jsx:decode(unicode:characters_to_binary(JSON)).
+    jsx:decode(unicode:characters_to_binary(JSON), [{labels, atom}]).
