@@ -448,6 +448,8 @@ timestamp({{Year, Month, Day}, {Hour, Min, _Sec}}) ->
     io_lib:format("~4.10.0B/~2.10.0B/~2.10.0B ~2B:~2.10.0B",
                   [Year + 1970, Month, Day, Hour, Min]).
 
+timestamp(day_only, Seconds) when is_integer(Seconds) ->
+    timestamp(day_only, calendar:gregorian_seconds_to_datetime(Seconds + ?SEC_TO_EPOCH));
 timestamp(day_only, {{_Year, Month, Day}, {_Hour, _Min, _Sec}}) ->
     io_lib:format("~2.10.0B/~2.10.0B",
                   [Month, Day]).
