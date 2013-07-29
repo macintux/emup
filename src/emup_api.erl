@@ -249,7 +249,8 @@ meetup_urls() ->
       { groups, #url{url=?BASE_URL("2/groups")} },
       { categories, #url{url=?BASE_URL("2/categories")} },
       { events, #url{url=?BASE_URL("2/events")} },
-      { open_events, #url{url=?BASE_URL("2/open_events")} },
+      { open_events, #url{url=?BASE_URL("2/open_events"),
+                          args=[{"and_text", "true"}]} },
       { find_groups, #url{url=?BASE_URL("find/groups")} },
       { event_info, #url{url=?BASE_URL("2/event/~s")} },
       { rsvps, #url{url=?BASE_URL("2/rsvps")} }
